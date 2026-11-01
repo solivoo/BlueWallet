@@ -36,7 +36,11 @@ final class ImageShareExtensionUITests: XCTestCase {
         guard photoTiles.firstMatch.waitForExistence(timeout: 10), photoTiles.count > 0 else {
             throw XCTSkip("Seed the simulator with the generated Bitcoin QR image before running this test")
         }
-        photoTiles.element(boundBy: photoTiles.count - 1).tap()
+        let sharedPhoto = photoTiles.element(boundBy: photoTiles.count - 1)
+        // Photos on iOS 26 can expose a visible grid tile with a valid frame
+        // while incorrectly reporting it as not hittable. Tapping its center
+        // coordinate avoids XCTest rejecting the interaction before dispatch.
+        sharedPhoto.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
 
         let shareButton = photos.buttons.matching(
             NSPredicate(format: "label == %@ OR identifier == %@", "Share", "PXBarItemIdentifierShare")
