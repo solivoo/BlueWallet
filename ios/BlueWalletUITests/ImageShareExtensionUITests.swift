@@ -38,9 +38,16 @@ final class ImageShareExtensionUITests: XCTestCase {
         }
         let sharedPhoto = photoTiles.element(boundBy: photoTiles.count - 1)
         // Photos on iOS 26 can expose a visible grid tile with a valid frame
-        // while incorrectly reporting it as not hittable. Tapping its center
-        // coordinate avoids XCTest rejecting the interaction before dispatch.
-        sharedPhoto.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        // while incorrectly reporting it as not hittable. Anchor the tap to the
+        // application instead of that broken accessibility element so XCTest
+        // dispatches directly to the tile's visible center.
+        let photosFrame = photos.frame
+        let sharedPhotoFrame = sharedPhoto.frame
+        let sharedPhotoCenter = CGVector(
+            dx: (sharedPhotoFrame.midX - photosFrame.minX) / photosFrame.width,
+            dy: (sharedPhotoFrame.midY - photosFrame.minY) / photosFrame.height
+        )
+        photos.coordinate(withNormalizedOffset: sharedPhotoCenter).tap()
 
         let shareButton = photos.buttons.matching(
             NSPredicate(format: "label == %@ OR identifier == %@", "Share", "PXBarItemIdentifierShare")
