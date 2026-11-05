@@ -12,6 +12,8 @@ describe('native app shortcut configuration', () => {
     const appDelegate = readRepositoryFile('ios/BlueWallet/AppDelegate.swift');
     const sceneDelegate = readRepositoryFile('ios/BlueWallet/SceneDelegate.swift');
     const project = readRepositoryFile('ios/BlueWallet.xcodeproj/project.pbxproj');
+    const fastfile = readRepositoryFile('fastlane/Fastfile');
+    const matchfile = readRepositoryFile('fastlane/Matchfile');
     const companionListeners = readRepositoryFile('hooks/useCompanionListeners.ts');
 
     expect(extensionInfo).toContain('<string>com.apple.share-services</string>');
@@ -21,6 +23,10 @@ describe('native app shortcut configuration', () => {
     expect(sharedImageStore).toContain('pendingSharedImageFilename');
     expect(project.match(/platformFilter = maccatalyst;/g)).toHaveLength(2);
     expect(project).toContain('SUPPORTS_MACCATALYST = YES;');
+    expect(project).toContain('match AppStore io.bluewallet.bluewallet.ShareExtension catalyst');
+    expect(fastfile).toContain('Contents/PlugIns/ShareExtension.appex/Contents/MacOS/ShareExtension');
+    expect(fastfile).toContain('File.join(archived_app, "Contents/PlugIns/ShareExtension.appex")');
+    expect(matchfile).toContain('"io.bluewallet.bluewallet.ShareExtension"');
     expect(companionListeners).toContain("decodedUrl.includes('/shared-images/')");
     expect(companionListeners).toContain('readQRCodeFromImageFile(decodedUrl)');
     expect(extensionController).toContain('CFNotificationCenterPostNotification');
