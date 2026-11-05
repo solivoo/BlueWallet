@@ -38,11 +38,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         RCTLinkingManager.scene(scene, openURLContexts: URLContexts)
     }
 
+    #if targetEnvironment(macCatalyst)
     func sceneDidBecomeActive(_ scene: UIScene) {
-        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate,
-              let sharedImageURL = appDelegate.consumePendingSharedImageURL() else { return }
-        _ = RCTLinkingManager.application(UIApplication.shared, open: sharedImageURL, options: [:])
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+        appDelegate.forwardPendingSharedImageToReactNative()
     }
+    #endif
 
     func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
         guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else {

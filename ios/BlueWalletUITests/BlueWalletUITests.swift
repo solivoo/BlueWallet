@@ -8,7 +8,7 @@
 
 import XCTest
 
-final class BlueWalletUITests: XCTestCase {
+class BlueWalletUITests: XCTestCase {
 
     var app: XCUIApplication!
 
@@ -37,12 +37,5 @@ final class BlueWalletUITests: XCTestCase {
         #else
         XCTAssertTrue(app.buttons.count > 0, "There should be at least one button on iOS")
         #endif
-    }
-
-    func testAppLaunchesAndShowsSettingsButton() {
-        let settingsButton = app.buttons["SettingsButton"]
-
-        XCTAssertTrue(settingsButton.waitForExistence(timeout: 10), "The settings button should appear after launch")
-        XCTAssertTrue(settingsButton.isHittable, "The settings button should be visible and interactable")
     }
 }

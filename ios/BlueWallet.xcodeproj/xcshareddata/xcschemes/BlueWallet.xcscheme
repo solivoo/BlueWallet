@@ -5,36 +5,6 @@
    <BuildAction
       parallelizeBuildables = "YES"
       buildImplicitDependencies = "YES">
-      <BuildActionEntries>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "YES"
-            buildForProfiling = "YES"
-            buildForArchiving = "YES"
-            buildForAnalyzing = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-               BuildableName = "BlueWallet.app"
-               BlueprintName = "BlueWallet"
-               ReferencedContainer = "container:BlueWallet.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "NO"
-            buildForProfiling = "NO"
-            buildForArchiving = "NO"
-            buildForAnalyzing = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "B47B21E82B2128B8001F6690"
-               BuildableName = "BlueWalletUITests.xctest"
-               BlueprintName = "BlueWalletUITests"
-               ReferencedContainer = "container:BlueWallet.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
-      </BuildActionEntries>
    </BuildAction>
    <TestAction
       buildConfiguration = "Debug"
@@ -47,9 +17,9 @@
             parallelizable = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "B47B21E82B2128B8001F6690"
-               BuildableName = "BlueWalletUITests.xctest"
-               BlueprintName = "BlueWalletUITests"
+               BlueprintIdentifier = "B4C1000B2F10000100C0DE0B"
+               BuildableName = "ShareExtensionTests.xctest"
+               BlueprintName = "ShareExtensionTests"
                ReferencedContainer = "container:BlueWallet.xcodeproj">
             </BuildableReference>
          </TestableReference>

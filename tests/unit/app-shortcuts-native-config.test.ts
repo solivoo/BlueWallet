@@ -5,39 +5,34 @@ const repositoryRoot = path.join(__dirname, '../..');
 const readRepositoryFile = (relativePath: string) => readFileSync(path.join(repositoryRoot, relativePath), 'utf8');
 
 describe('native app shortcut configuration', () => {
-  it('does not register BlueWallet as an image viewer on iOS or Android', () => {
-    const infoPlist = readRepositoryFile('ios/BlueWallet/Info.plist');
-    const androidManifest = readRepositoryFile('android/app/src/main/AndroidManifest.xml');
-    const androidViewFilters = androidManifest
-      .match(/<intent-filter[^>]*>[\s\S]*?<\/intent-filter>/g)
-      ?.filter(intentFilter => intentFilter.includes('android.intent.action.VIEW'));
-
-    expect(infoPlist).not.toMatch(/<string>public\.(?:image|jpeg|png|heic)<\/string>/);
-    expect(androidViewFilters?.join('\n')).not.toContain('android:mimeType="image/');
-    expect(androidViewFilters?.join('\n')).not.toContain('android:pathPattern=".*\\\\.*"');
-  });
-
-  it('registers image receiving as a share service on iOS and Android', () => {
-    const shareExtensionInfo = readRepositoryFile('ios/ShareExtension/Info.plist');
-    const androidManifest = readRepositoryFile('android/app/src/main/AndroidManifest.xml');
-    const androidSendFilters = androidManifest
-      .match(/<intent-filter[^>]*>[\s\S]*?<\/intent-filter>/g)
-      ?.filter(intentFilter => intentFilter.includes('android.intent.action.SEND'));
-
-    expect(shareExtensionInfo).toContain('<string>com.apple.share-services</string>');
-    expect(shareExtensionInfo).toContain('<key>NSExtensionActivationSupportsImageWithMaxCount</key>');
-    expect(shareExtensionInfo).toContain('<key>CFBundleIdentifier</key>');
-    expect(shareExtensionInfo).toContain('<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>');
-    expect(shareExtensionInfo).toContain('<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>');
-    expect(androidSendFilters?.some(intentFilter => intentFilter.includes('android:mimeType="image/*"'))).toBe(true);
-
-    const shareViewController = readRepositoryFile('ios/ShareExtension/ShareViewController.swift');
+  it('registers image sharing as a Mac Catalyst-only extension', () => {
+    const extensionInfo = readRepositoryFile('ios/ShareExtension/Info.plist');
+    const extensionController = readRepositoryFile('ios/ShareExtension/ShareViewController.swift');
+    const sharedImageStore = readRepositoryFile('ios/ShareExtension/SharedImageStore.swift');
+    const appDelegate = readRepositoryFile('ios/BlueWallet/AppDelegate.swift');
+    const sceneDelegate = readRepositoryFile('ios/BlueWallet/SceneDelegate.swift');
+    const project = readRepositoryFile('ios/BlueWallet.xcodeproj/project.pbxproj');
     const companionListeners = readRepositoryFile('hooks/useCompanionListeners.ts');
-    expect(shareViewController).toContain('copyItem(at: sourceURL, to: destinationURL)');
-    expect(shareViewController).not.toContain('pngData()');
-    expect(shareViewController).not.toContain('UIImage(contentsOfFile:');
-    expect(shareViewController).not.toContain('detectQRCode');
+
+    expect(extensionInfo).toContain('<string>com.apple.share-services</string>');
+    expect(extensionInfo).toContain('<key>NSExtensionActivationSupportsImageWithMaxCount</key>');
+    expect(extensionController).toContain('SharedImageStore(containerURL: container, defaults: defaults)');
+    expect(sharedImageStore).toContain('copyItem(at: sourceURL, to: destinationURL)');
+    expect(sharedImageStore).toContain('pendingSharedImageFilename');
+    expect(project.match(/platformFilter = maccatalyst;/g)).toHaveLength(2);
+    expect(project).toContain('SUPPORTS_MACCATALYST = YES;');
     expect(companionListeners).toContain("decodedUrl.includes('/shared-images/')");
+    expect(companionListeners).toContain('readQRCodeFromImageFile(decodedUrl)');
+    expect(extensionController).toContain('CFNotificationCenterPostNotification');
+    expect(appDelegate).toContain('CFNotificationCenterAddObserver');
+    expect(appDelegate).toContain('handlePendingSharedImageNotification()');
+    expect(sceneDelegate).toContain('forwardPendingSharedImageToReactNative()');
+    expect(extensionController).toContain('io.bluewallet.bluewallet.shared-image-imported');
+    expect(appDelegate).toContain('io.bluewallet.bluewallet.shared-image-imported');
+    expect(appDelegate).toContain('CFNotificationCenterRemoveObserver');
+    expect(appDelegate).toContain('guard !requestedName.isEmpty');
+    expect(companionListeners).toContain('finally {');
+    expect(companionListeners).toContain("await RNFS.unlink(decodedUrl.replace(/^file:\\/\\//, ''))");
   });
 
   it('limits Android browsable links to the static BlueWallet shortcut routes', () => {

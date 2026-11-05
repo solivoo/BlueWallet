@@ -5,26 +5,59 @@ import ReactAppDependencyProvider
 import UserNotifications
 import Bugsnag
 
+#if targetEnvironment(macCatalyst)
+private let sharedImageNotificationCallback: CFNotificationCallback = { _, observer, _, _, _ in
+    guard let observer else { return }
+    let appDelegate = Unmanaged<AppDelegate>.fromOpaque(observer).takeUnretainedValue()
+    DispatchQueue.main.async {
+        appDelegate.handlePendingSharedImageNotification()
+    }
+}
+#endif
 
 @main
 class AppDelegate: RCTAppDelegate, UNUserNotificationCenterDelegate {
 
+    #if targetEnvironment(macCatalyst)
     private static let appGroup = "group.io.bluewallet.bluewallet"
     private static let pendingImageKey = "pendingSharedImageFilename"
+    private static let sharedImageNotificationName = CFNotificationName(
+        "io.bluewallet.bluewallet.shared-image-imported" as CFString
+    )
+    #endif
     private var userDefaultsGroup: UserDefaults?
     var sceneLaunchOptions: [UIApplication.LaunchOptionsKey: Any]?
 
+    deinit {
+        #if targetEnvironment(macCatalyst)
+        CFNotificationCenterRemoveObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            Unmanaged.passUnretained(self).toOpaque(),
+            Self.sharedImageNotificationName,
+            nil
+        )
+        #endif
+    }
+
     override func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        var reactLaunchOptions = launchOptions ?? [:]
+        var reactLaunchOptions = launchOptions
         if let shortcutItem = launchOptions?[.shortcutItem] as? UIApplicationShortcutItem,
            let url = appLinkURL(for: shortcutItem) {
-            reactLaunchOptions[.url] = url
-            reactLaunchOptions.removeValue(forKey: .shortcutItem)
+            reactLaunchOptions?[.url] = url
+            reactLaunchOptions?.removeValue(forKey: .shortcutItem)
         }
-        if reactLaunchOptions[.url] == nil, let sharedImageURL = consumePendingSharedImageURL() {
-            reactLaunchOptions[.url] = sharedImageURL
+        #if targetEnvironment(macCatalyst)
+        if reactLaunchOptions?[.url] == nil, let sharedImageURL = consumePendingSharedImageURL() {
+            if reactLaunchOptions == nil {
+                reactLaunchOptions = [:]
+            }
+            reactLaunchOptions?[.url] = sharedImageURL
         }
+        #endif
         sceneLaunchOptions = reactLaunchOptions
+        #if targetEnvironment(macCatalyst)
+        registerSharedImageNotificationObserver()
+        #endif
         automaticallyLoadReactNativeWindow = false
         clearFilesIfNeeded()
 
@@ -348,9 +381,37 @@ class AppDelegate: RCTAppDelegate, UNUserNotificationCenterDelegate {
         return RCTLinkingManager.application(app, open: url, options: options)
     }
 
+    #if targetEnvironment(macCatalyst)
+    private func registerSharedImageNotificationObserver() {
+        CFNotificationCenterAddObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            Unmanaged.passUnretained(self).toOpaque(),
+            sharedImageNotificationCallback,
+            Self.sharedImageNotificationName.rawValue,
+            nil,
+            .deliverImmediately
+        )
+    }
+
+    func handlePendingSharedImageNotification() {
+        guard UIApplication.shared.applicationState == .active else { return }
+        forwardPendingSharedImageToReactNative()
+    }
+
+    func forwardPendingSharedImageToReactNative() {
+        guard let sharedImageURL = consumePendingSharedImageURL() else { return }
+        _ = RCTLinkingManager.application(UIApplication.shared, open: sharedImageURL, options: [:])
+    }
+
     func consumePendingSharedImageURL() -> URL? {
         guard let defaults = UserDefaults(suiteName: Self.appGroup),
-              let requestedName = defaults.string(forKey: Self.pendingImageKey),
+              let requestedName = defaults.string(forKey: Self.pendingImageKey) else {
+            return nil
+        }
+
+        defaults.removeObject(forKey: Self.pendingImageKey)
+
+        guard !requestedName.isEmpty,
               requestedName == (requestedName as NSString).lastPathComponent,
               let container = FileManager.default.containerURL(
                   forSecurityApplicationGroupIdentifier: Self.appGroup
@@ -358,12 +419,12 @@ class AppDelegate: RCTAppDelegate, UNUserNotificationCenterDelegate {
             return nil
         }
 
-        defaults.removeObject(forKey: Self.pendingImageKey)
         let imageURL = container
             .appendingPathComponent("shared-images", isDirectory: true)
             .appendingPathComponent(requestedName)
         return FileManager.default.fileExists(atPath: imageURL.path) ? imageURL : nil
     }
+    #endif
 
     override func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         RNNotifications.didRegisterForRemoteNotifications(withDeviceToken: deviceToken)

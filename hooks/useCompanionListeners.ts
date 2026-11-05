@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { AppState, AppStateStatus, Linking } from 'react-native';
 import { reconcileArkBackgroundTaskResults } from '../blue_modules/arkade-background';
 import { updateExchangeRate } from '../blue_modules/currency';
-import { showFilePickerAndReadFile } from '../blue_modules/fs';
+import { readQRCodeFromImageFile, showFilePickerAndReadFile } from '../blue_modules/fs';
 import triggerHapticFeedback, { HapticFeedbackTypes } from '../blue_modules/hapticFeedback';
 import {
   clearStoredNotifications,
@@ -20,7 +20,6 @@ import { Chain } from '../models/bitcoinUnits';
 import { navigationRef } from '../NavigationService';
 import { useSettings } from './context/useSettings';
 import { useStorage } from './context/useStorage';
-import { detectQRCodeInImage } from 'react-native-camera-kit-no-google';
 import RNFS from 'react-native-fs';
 import presentAlert from '../components/Alert';
 import { setAvailableRecentWalletIDs, setHiddenRecentWalletIDs, setRecentMenuItemsEnabled } from '../components/Context/recentMenuItems';
@@ -285,25 +284,23 @@ const useCompanionListeners = (skipIfNotInitialized = true) => {
         const fileName = decodedUrl.split('/').pop()?.toLowerCase() || '';
         const isSharedImage = decodedUrl.includes('/shared-images/');
         if (isSharedImage || /\.(jpe?g|png|heic|heif|webp|gif|bmp|tiff?)$/i.test(fileName)) {
-          let base64: string;
           try {
-            base64 = await RNFS.readFile(decodedUrl, 'base64');
-          } catch {
-            base64 = await RNFS.readFile(decodedUrl.replace(/^file:\/\//, ''), 'base64');
-          }
-          const qrValue = await detectQRCodeInImage(base64);
-          if (!qrValue) {
-            throw new Error(loc.send.qr_error_no_qrcode);
-          }
-          triggerHapticFeedback(HapticFeedbackTypes.NotificationSuccess);
-          DeeplinkSchemaMatch.navigationRouteFor({ url: qrValue }, value => navigationRef.navigate(...value), {
-            wallets,
-            addWallet,
-            saveToDisk,
-            setSharedCosigner,
-          });
-          if (isSharedImage) {
-            RNFS.unlink(decodedUrl.replace(/^file:\/\//, '')).catch(() => undefined);
+            const qrValue = await readQRCodeFromImageFile(decodedUrl);
+            triggerHapticFeedback(HapticFeedbackTypes.NotificationSuccess);
+            DeeplinkSchemaMatch.navigationRouteFor({ url: qrValue }, value => navigationRef.navigate(...value), {
+              wallets,
+              addWallet,
+              saveToDisk,
+              setSharedCosigner,
+            });
+          } finally {
+            if (isSharedImage) {
+              try {
+                await RNFS.unlink(decodedUrl.replace(/^file:\/\//, ''));
+              } catch {
+                // The file may already have been removed by a later share or system cleanup.
+              }
+            }
           }
         } else {
           DeeplinkSchemaMatch.navigationRouteFor(event, value => navigationRef.navigate(...value), {
